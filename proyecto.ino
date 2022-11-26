@@ -3,16 +3,17 @@
 #include <Arduino_JSON.h>
 #include <Firebase_ESP_Client.h>
 
+
 const char* ssid = "Totalplay-C5A1";
 const char* password = "C5A163D3E3PAe6Rw";
 
 #include "addons/TokenHelper.h"
-#define API_KEY "AIzaSyCkEVunp97TM5RYZXri-9EwuWb6L722XZk";
+#define API_KEY "AIzaSyDDdCSJHWu4F-Ae6O6L3g9wrqY7lkXdGZE";
 
-#define USER_EMAIL "micontra@gmail.com";
+#define USER_EMAIL "arduino@gmail.com";
 #define USER_PASSWORD "micontra";
 
-#define DATABASE_URL "https://login-glam.firebaseio.com/";
+#define DATABASE_URL "https://smart-pod-e1793-default-rtdb.firebaseio.com/";
 
 // Define Firebase objects
 FirebaseData fbdo;
@@ -28,29 +29,69 @@ float Sensor_value;
 String humPath;
 
 
-float Humedad=0;
+float Humedad = 0;
+float valMin = 0;
+float valMax = 0;
+float getData = 0;
 void setup() {
   Serial.begin(115200);
-
+  pinMode(22, OUTPUT);
+  pinMode(27, OUTPUT);
   connectToWiFi();
-   
-
 
 }
 
 void loop() {
   if (WiFi.status() == WL_CONNECTED) {
-   
+
     Sensor_value = getDataHumidity();
     Serial.print("Soil Moisture is  = ");
     Serial.print(Sensor_value);
-    sendFloat("/humedad", Sensor_value);
+    String setValueUrl = "/macetas/" + WiFi.macAddress() + "/humedad/actual";
+    sendFloat(setValueUrl, Sensor_value);
     Serial.println("%");
-    delay(3000);
+
+    String getValueLimitUrlMax = "/macetas/" + WiFi.macAddress() + "/humedad/max";
+    String getValueLimitUrlMin = "/macetas/" + WiFi.macAddress() + "/humedad/min";
+
+    valMin = getFloat(getValueLimitUrlMin);
+    valMax = getFloat(getValueLimitUrlMax);
+    if (Sensor_value <= valMin ) {
+      //encender
+       //foco
+      digitalWrite(22, HIGH);
+       //relay module
+      digitalWrite(27, LOW);
+
+    }
+    if (Sensor_value >= valMin) {
+      ///apagar
+      //foco
+      digitalWrite(22, LOW);
+      //relay module
+      digitalWrite(27, HIGH);
+    }
+
+    Serial.print("Min--->");
+    Serial.print(valMin);
+    Serial.print("Max--->");
+    Serial.print(valMax);
+    delay(2000);
   }
 }
-void sendFloat(String path, float value){
-  if (Firebase.RTDB.setFloat(&fbdo, path.c_str(), value)){
+float getFloat(String path) {
+  if (Firebase.RTDB.getFloat(&fbdo, path)) {
+    if (fbdo.dataType() == "float") {
+      //Vamos a hacer la validacion para saber los limites
+      return fbdo.floatData();
+    }
+  } else {
+    return 0.0;
+  }
+}
+
+void sendFloat(String path, float value) {
+  if (Firebase.RTDB.setFloat(&fbdo, path.c_str(), value)) {
     Serial.print("Writing value: ");
     Serial.print (value);
     Serial.print(" on the following path: ");
@@ -65,8 +106,8 @@ void sendFloat(String path, float value){
   }
 }
 
-void connectFirebase(){
-   // Assign the api key (required)
+void connectFirebase() {
+  // Assign the api key (required)
   config.api_key = API_KEY;
 
   // Assign the user sign in credentials
@@ -92,8 +133,8 @@ void connectFirebase(){
 float getDataHumidity() {
   Serial.println("Row data ---> " + String(analogRead(Sensor_pin)));
 
-  Humedad = 100.0 - (analogRead(Sensor_pin)/4096.0) * 100.0;
-  
+  Humedad = 100.0 - (analogRead(Sensor_pin) / 4096.0) * 100.0;
+
   return Humedad;
 
 }
