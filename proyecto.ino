@@ -29,10 +29,13 @@ float Sensor_value;
 String humPath;
 
 
-float Humedad = 0;
+float Humedad = 0.0;
 float valMin = 0;
 float valMax = 0;
 float getData = 0;
+
+int humedad_data = 0;
+
 void setup() {
   Serial.begin(115200);
   pinMode(22, OUTPUT);
@@ -45,11 +48,9 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED) {
 
     Sensor_value = getDataHumidity();
-    Serial.print("Soil Moisture is  = ");
-    Serial.print(Sensor_value);
     String setValueUrl = "/macetas/" + WiFi.macAddress() + "/humedad/actual";
     sendFloat(setValueUrl, Sensor_value);
-    Serial.println("%");
+
 
     String getValueLimitUrlMax = "/macetas/" + WiFi.macAddress() + "/humedad/max";
     String getValueLimitUrlMin = "/macetas/" + WiFi.macAddress() + "/humedad/min";
@@ -58,9 +59,9 @@ void loop() {
     valMax = getFloat(getValueLimitUrlMax);
     if (Sensor_value <= valMin ) {
       //encender
-       //foco
+      //foco
       digitalWrite(22, HIGH);
-       //relay module
+      //relay module
       digitalWrite(27, LOW);
 
     }
@@ -76,6 +77,9 @@ void loop() {
     Serial.print(valMin);
     Serial.print("Max--->");
     Serial.print(valMax);
+    Serial.print("Hume -->");
+    Serial.print(Sensor_value);
+
     delay(2000);
   }
 }
@@ -92,13 +96,8 @@ float getFloat(String path) {
 
 void sendFloat(String path, float value) {
   if (Firebase.RTDB.setFloat(&fbdo, path.c_str(), value)) {
-    Serial.print("Writing value: ");
-    Serial.print (value);
-    Serial.print(" on the following path: ");
-    Serial.println(path);
     Serial.println("PASSED");
-    Serial.println("PATH: " + fbdo.dataPath());
-    Serial.println("TYPE: " + fbdo.dataType());
+
   }
   else {
     Serial.println("FAILED");
@@ -132,9 +131,9 @@ void connectFirebase() {
 
 float getDataHumidity() {
   Serial.println("Row data ---> " + String(analogRead(Sensor_pin)));
-
-  Humedad = 100.0 - (analogRead(Sensor_pin) / 4096.0) * 100.0;
-
+  humedad_data = analogRead(Sensor_pin);
+  // Humedad = map(analogRead(Sensor_pin), 4095 , 4095 - analogRead(Sensor_pin) , 0, 100);
+ Humedad = map(humedad_data, 4095 , 4095 - humedad_data , 0, 100);
   return Humedad;
 
 }
